@@ -1,0 +1,12 @@
+# Replace 'example.com' with your actual domain name or public IP
+# If using IP, Caddy will serve over HTTP or self-signed HTTPS unless you have a domain.
+# For Vercel <-> Oracle mostly you need a domain for valid SSL.
+
+:80 {
+    reverse_proxy volt-backend:5000
+}
+
+# Ideally, if you have a domain:
+# your-domain.com {
+#     reverse_proxy volt-backend:5000
+# }

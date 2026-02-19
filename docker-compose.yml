@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  volt-backend:
+    build: .
+    container_name: volt-backend
+    restart: always
+    environment:
+      - CORS_ORIGIN=https://volt-frontend.vercel.app
+      # Add other env vars here if needed
+    volumes:
+      - ./cache:/app/cache  # Persistent cache
+    expose:
+      - "5000"
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - volt-backend
+
+volumes:
+  caddy_data:
+  caddy_config:
