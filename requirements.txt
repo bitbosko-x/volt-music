@@ -23,5 +23,9 @@ blinker==1.7.0
 gunicorn==21.2.0  # Unix-based systems (Linux/WSL)
 waitress==2.1.2   # Cross-platform alternative
 
+# Helper Libraries
+Flask-Limiter==3.5.0
+requests-cache==1.1.0
+
 # CORS support for React frontend
 flask-cors==6.0.2
