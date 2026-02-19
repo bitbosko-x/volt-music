@@ -1,43 +1,22 @@
-# Volt Music - Production Deployment Guide
+## 1. Backend Deployment (Render)
 
-## 1. Backend Deployment (Oracle Cloud)
-
-We use **Docker** to containerize the application and **Caddy** as a reverse proxy to automatically handle HTTPS (SSL certificates).
-
-### Prerequisites
-- An Oracle Cloud VM (Always Free ARM instance recommended: 4 OCPUs, 24GB RAM).
-- A domain name pointing to your VM's public IP (Required for HTTPS).
-- Docker and Docker Compose installed on the VM.
+We use **Render** to host the Python API. It's free and connects directly to GitHub.
 
 ### Steps
 
-1. **Clone the Repository** to your VM.
-2. **Update `Caddyfile`**:
-   - Open `Caddyfile` and replace `:80` with your actual domain name (e.g., `api.yourdomain.com`).
-   - If you don't have a domain yet, you can keep `:80` but Vercel will struggle to connect due to Mixed Content errors.
-
-3. **Start Services**:
-   ```bash
-   docker-compose up -d --build
-   ```
-
-4. **Verify**:
-   - Check if running: `docker-compose ps`
-   - Check logs: `docker-compose logs -f`
-   - Test URL: `https://your-domain.com/api/search?q=test`
+1.  **Push your code** to GitHub (including `render.yaml`).
+2.  **Log in to Render**: [dashboard.render.com](https://dashboard.render.com/).
+3.  Click **"New"** -> **"Blueprint"**.
+4.  Connect your `volt-music` repository.
+5.  Render will detect the `render.yaml` file and set everything up automatically.
+6.  Click **"Apply"** or **"Create Service"**.
 
 ### Persistence
-- **Cache**: The `cache/` directory is mounted as a volume, so your cache persists across restarts.
-- **Certificates**: Caddy stores SSL certificates in a docker volume `caddy_data`.
+*Note: The free tier of Render does NOT support persistent disks. This means the file-based cache (`cache/`) will be cleared every time the app restarts or deploys. This is fine for this app, but just be aware.*
 
 ### Updating the App
-To deploy new code changes:
-```bash
-git pull
-docker-compose up -d --build
-```
+*   Just push changes to GitHub. Render will auto-deploy.
 
----
 
 ## 2. Frontend Deployment (Cloudflare Pages)
 
