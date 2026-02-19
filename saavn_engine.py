@@ -13,7 +13,15 @@ from cache_manager import smart_cache
 # so there is no security loss if the env var is unset during local development.
 _DES_KEY = os.getenv("SAAVN_DES_KEY", "38346591").encode("utf-8")
 DES_CIPHER = des(_DES_KEY, ECB, pad=None, padmode=PAD_PKCS5)
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
+
+# Better headers to avoid detection/blocking
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.jiosaavn.com/',
+    'Origin': 'https://www.jiosaavn.com'
+}
 
 def decrypt_url(encrypted_url):
     try:
@@ -46,10 +54,18 @@ def search_saavn(query):
         # 1. Try with cleaned query
         resp = requests.get("https://www.jiosaavn.com/api.php", params={
             "__call": "search.getResults", "_format": "json", "q": cleaned_query, "n": "10", "p": "1", "_marker": "0", "ctx": "web6dot0"
-        }, headers=HEADERS, timeout=5)
+        }, headers=HEADERS, timeout=10)
+        
+        print(f"   [Saavn] Response status: {resp.status_code}")
+        
+        if resp.status_code != 200:
+            print(f"   [Saavn] Non-200 response: {resp.status_code} - {resp.text[:200]}")
+            return []
         
         data = fix_json(resp.text)
         results = data.get('results') or data.get('data', {}).get('results')
+        
+        print(f"   [Saavn] Found {len(results) if results else 0} raw results")
         
         # 2. FALLBACK: If 0 results, try even simpler query (Title + First Artist)
         if not results and ('&' in query or ',' in query):
@@ -58,11 +74,16 @@ def search_saavn(query):
             print(f"   [Saavn] No results. Trying Lite Search: '{lite_query}'")
             resp = requests.get("https://www.jiosaavn.com/api.php", params={
                 "__call": "search.getResults", "_format": "json", "q": lite_query, "n": "10", "p": "1", "_marker": "0", "ctx": "web6dot0"
-            }, headers=HEADERS, timeout=5)
+            }, headers=HEADERS, timeout=10)
+            
+            print(f"   [Saavn] Lite search status: {resp.status_code}")
             data = fix_json(resp.text)
             results = data.get('results') or data.get('data', {}).get('results')
+            print(f"   [Saavn] Lite search found {len(results) if results else 0} results")
 
-        if not results: return []
+        if not results: 
+            print(f"   [Saavn] No results found for any variant of query")
+            return []
 
         songs = []
         for s in results:
@@ -71,6 +92,10 @@ def search_saavn(query):
                 if enc:
                     # Decrypt and Upgrade to 320kbps
                     raw_url = decrypt_url(enc)
+                    if not raw_url:
+                        print(f"   [Saavn] Failed to decrypt URL for: {s.get('song', 'Unknown')}")
+                        continue
+                        
                     hq_url = raw_url.replace("_96.mp4", "_320.mp4").replace("_160.mp4", "_320.mp4")
                     
                     #  PRIORITY: artistMap (performers) > subtitle > music (songwriters/composers)
@@ -95,8 +120,11 @@ def search_saavn(query):
                         "source": "saavn",
                         "quality": "320kbps"
                     })
-            except: continue
-        return songs
+            except Exception as e:
+                print(f"   [Saavn] Error processing result: {e}")
+                continue
+        
+        print(f"   [Saavn] Returning {len(songs)} songs")
         return songs
     except RequestException as e:
          print(f"   [Saavn] Connection Error: {e}")

@@ -82,32 +82,42 @@ def smart_autocorrect(query):
 def search_youtube(query):
     """Returns a list of YouTube videos (Fallback)"""
     print(f"   [YouTube] Searching for: '{query}'")
-    # Let exceptions propagate (caught by api.py)
-    opts = {**YDL_OPTS_BASE, 'extract_flat': True}
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(f"ytsearch5:{query}", download=False)
+    try:
+        opts = {**YDL_OPTS_BASE, 'extract_flat': True}
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(f"ytsearch5:{query}", download=False)
+            
+        if not info or 'entries' not in info: 
+            return []
         
-    if 'entries' not in info: return []
-    
-    songs = []
-    for vid in info['entries']:
-        songs.append({
-            "title": vid.get('title'),
-            "artist": vid.get('uploader'),
-            "image": f"https://img.youtube.com/vi/{vid.get('id')}/hqdefault.jpg",
-            "url": vid.get('url') or f"https://www.youtube.com/watch?v={vid.get('id')}",
-            "source": "yt",
-            "quality": "160kbps"
-        })
-    return songs
+        songs = []
+        for vid in info['entries']:
+            if vid:  # Make sure vid is not None
+                songs.append({
+                    "title": vid.get('title'),
+                    "artist": vid.get('uploader'),
+                    "image": f"https://img.youtube.com/vi/{vid.get('id')}/hqdefault.jpg",
+                    "url": vid.get('url') or f"https://www.youtube.com/watch?v={vid.get('id')}",
+                    "source": "yt",
+                    "quality": "160kbps"
+                })
+        return songs
+    except Exception as e:
+        print(f"   [YouTube] Search failed: {e}")
+        return []
 
 def resolve_yt_stream(watch_url):
     """Resolves a Watch URL to a temporary audio stream URL using yt-dlp"""
-    # Let exceptions propagate
-    opts = {**YDL_OPTS_BASE, 'format': 'bestaudio/best', 'noplaylist': True}
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(watch_url, download=False)
-        return info.get('url')
+    try:
+        opts = {**YDL_OPTS_BASE, 'format': 'bestaudio/best', 'noplaylist': True}
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(watch_url, download=False)
+            if info:
+                return info.get('url')
+            return None
+    except Exception as e:
+        print(f"   [YouTube] Stream resolution failed: {e}")
+        return None
 
 @smart_cache(ttl=600, validator=lambda x: x is not None)
 def get_audio_link(search_term):
@@ -115,19 +125,22 @@ def get_audio_link(search_term):
     SINGLE-CALL Optimized search + resolve.
     """
     print(f"   [YouTube] Speed-matching: '{search_term}'")
-    # Combining search and resolution in one call for major speedup
-    opts = {
-        **YDL_OPTS_BASE,
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        # We use ytsearch1 to get the actual stream info immediately
-        info = ydl.extract_info(f"ytsearch1:{search_term}", download=False)
-        
-    if 'entries' in info and info['entries']:
-        return info['entries'][0].get('url')
-        
+    try:
+        # Combining search and resolution in one call for major speedup
+        opts = {
+            **YDL_OPTS_BASE,
+            'format': 'bestaudio/best',
+            'noplaylist': True,
+        }
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            # We use ytsearch1 to get the actual stream info immediately
+            info = ydl.extract_info(f"ytsearch1:{search_term}", download=False)
+            
+        if info and 'entries' in info and info['entries']:
+            return info['entries'][0].get('url')
+    except Exception as e:
+        print(f"   [YouTube] Audio link extraction failed: {e}")
+            
     return None
 
 @smart_cache(ttl=7200, validator=lambda x: x is not None)
@@ -136,15 +149,18 @@ def get_video_url(search_term):
     Finds a video stream URL (MP4) for background playback.
     """
     print(f"   [YouTube] Fetching Video: '{search_term}'")
-    opts = {
-        **YDL_OPTS_BASE,
-        'format': 'best[ext=mp4]/best', # We want video!
-        'noplaylist': True,
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(f"ytsearch1:{search_term}", download=False)
-        
-    if 'entries' in info and info['entries']:
-        return info['entries'][0].get('url')
+    try:
+        opts = {
+            **YDL_OPTS_BASE,
+            'format': 'best[ext=mp4]/best', # We want video!
+            'noplaylist': True,
+        }
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(f"ytsearch1:{search_term}", download=False)
+            
+        if info and 'entries' in info and info['entries']:
+            return info['entries'][0].get('url')
+    except Exception as e:
+        print(f"   [YouTube] Video URL extraction failed: {e}")
         
     return None
