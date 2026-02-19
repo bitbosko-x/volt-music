@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Play, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { searchMusic } from '@/lib/api';
 
 export function ChartsSection({ onSongPlay, onViewAll }) {
     const navigate = useNavigate();
@@ -11,6 +12,7 @@ export function ChartsSection({ onSongPlay, onViewAll }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchHindiSongs = async () => {
             // Popular Hindi songs to search
             const searches = [
@@ -25,33 +27,33 @@ export function ChartsSection({ onSongPlay, onViewAll }) {
             try {
                 const songData = await Promise.all(
                     searches.map(async (search) => {
-                        const response = await fetch(
-                            `https://itunes.apple.com/search?term=${encodeURIComponent(search)}&entity=song&limit=1&country=IN`
-                        );
-                        const data = await response.json();
-                        if (data.results && data.results.length > 0) {
-                            const track = data.results[0];
-                            return {
-                                title: track.trackName,
-                                artist: track.artistName,
-                                album: track.collectionName,
-                                image: track.artworkUrl100?.replace('100x100bb', '600x600bb') ||
-                                    'https://via.placeholder.com/200x200/444/fff?text=Song',
-                                search_term: `${track.trackName} ${track.artistName}`
-                            };
+                        try {
+                            const data = await searchMusic(search);
+                            if (data && data.songs && data.songs.length > 0) {
+                                return data.songs[0];
+                            }
+                        } catch (e) {
+                            console.error(`Failed to fetch chart song: ${search}`, e);
                         }
                         return null;
                     })
                 );
-                setSongs(songData.filter(song => song !== null));
+
+                if (isMounted) {
+                    setSongs(songData.filter(song => song !== null));
+                }
             } catch (error) {
                 console.error('Failed to fetch songs:', error);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchHindiSongs();
+
+        return () => { isMounted = false; };
     }, []);
 
     const handleViewAll = () => {
@@ -76,6 +78,9 @@ export function ChartsSection({ onSongPlay, onViewAll }) {
             </div>
         );
     }
+
+    // Check if songs exist to avoid rendering empty container
+    if (!songs || songs.length === 0) return null;
 
     return (
         <div className="mb-8">

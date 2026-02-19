@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Play } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { searchMusic } from '@/lib/api';
 
 const creators = [
     {
@@ -50,14 +51,14 @@ const creators = [
 
 async function fetchSongArt(itunesQuery, fallbackColor, name) {
     try {
-        const res = await fetch(
-            `https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=1&country=US`
-        );
-        const data = await res.json();
-        if (data.results?.length > 0 && data.results[0].artworkUrl100) {
-            return data.results[0].artworkUrl100.replace('100x100bb', '400x400bb');
+        // Use our backend API to avoid CORS issues and get HQ images
+        const data = await searchMusic(itunesQuery);
+        // data.songs is an array of songs with .image property
+        if (data && data.songs && data.songs.length > 0) {
+            return data.songs[0].image;
         }
     } catch (_) { }
+    // Fallback UI Avatar
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=200&background=${fallbackColor}&color=fff&bold=true&font-size=0.35`;
 }
 
@@ -66,11 +67,21 @@ export function NoCopyrightSection({ onCategoryClick }) {
 
     useEffect(() => {
         let cancelled = false;
-        Promise.all(
-            creators.map(c => fetchSongArt(c.itunesQuery, c.fallbackColor, c.name))
-        ).then(results => {
-            if (!cancelled) setImages(results);
-        });
+
+        const loadImages = async () => {
+            // Create a promise for each creator
+            const promises = creators.map(c => fetchSongArt(c.itunesQuery, c.fallbackColor, c.name));
+
+            // Wait for all (or handle individually if needed, but Promise.all is fine here as fetchSongArt handles errors)
+            const results = await Promise.all(promises);
+
+            if (!cancelled) {
+                setImages(results);
+            }
+        };
+
+        loadImages();
+
         return () => { cancelled = true; };
     }, []);
 
