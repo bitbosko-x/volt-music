@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const TIMEOUT_MS = 5000;
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Custom hook that continuously monitors backend connectivity.
@@ -19,7 +20,7 @@ export function useBackendHealth() {
             const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
             // Lightweight probe — search endpoint with a tiny payload
-            const res = await fetch('/api/search?q=test', {
+            const res = await fetch(`${API_BASE}/search?q=test`, {
                 method: 'GET',
                 signal: controller.signal,
             });
