@@ -15,8 +15,17 @@ app = Flask(__name__)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # Restrict to the known frontend origin; override via CORS_ORIGIN env var.
-_cors_origin = os.getenv("CORS_ORIGIN", "http://localhost:3000")
-CORS(app, origins=[_cors_origin])
+# Supports comma-separated list: CORS_ORIGIN=https://a.com,https://b.com
+_raw_origin = os.getenv("CORS_ORIGIN", "http://localhost:3000")
+_cors_origins = [o.strip() for o in _raw_origin.split(",") if o.strip()]
+CORS(
+    app,
+    origins=_cors_origins,
+    methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Range"],
+    expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
+    supports_credentials=False,
+)
 
 # ── Rate Limiting ─────────────────────────────────────────────────────────────
 limiter = Limiter(
@@ -204,6 +213,12 @@ def api_stream():
             response_headers['Content-Length'] = yt_resp.headers['Content-Length']
         if 'Content-Range' in yt_resp.headers:
             response_headers['Content-Range'] = yt_resp.headers['Content-Range']
+
+        # Manually inject CORS header for streaming Response (Flask-CORS
+        # doesn't auto-inject into manually constructed Response objects)
+        request_origin = request.headers.get("Origin", "")
+        if request_origin in _cors_origins:
+            response_headers["Access-Control-Allow-Origin"] = request_origin
 
         status_code = yt_resp.status_code  # 206 for partial, 200 for full
 
