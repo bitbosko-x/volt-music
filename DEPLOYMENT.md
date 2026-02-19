@@ -1,15 +1,23 @@
+# Volt Music - Production Deployment Guide
+
 ## 1. Backend Deployment (Render)
 
 We use **Render** to host the Python API. It's free and connects directly to GitHub.
 
-### Steps
+### Steps to Deploy (Free Tier - No Card Required)
 
-1.  **Push your code** to GitHub (including `render.yaml`).
-2.  **Log in to Render**: [dashboard.render.com](https://dashboard.render.com/).
-3.  Click **"New"** -> **"Blueprint"**.
-4.  Connect your `volt-music` repository.
-5.  Render will detect the `render.yaml` file and set everything up automatically.
-6.  Click **"Apply"** or **"Create Service"**.
+1.  **Log in to Render**: [dashboard.render.com](https://dashboard.render.com/).
+2.  Click **"New"** -> **"Web Service"** (NOT Blueprint).
+3.  Connect your public `volt-music` repository.
+4.  **Configure Settings**:
+    *   **Name**: `volt-backend`
+    *   **Region**: Closest to you (e.g., Singapore/US).
+    *   **Runtime**: `Python 3`
+    *   **Root Directory**: Leave blank (uses root).
+    *   **Build Command**: `pip install -r requirements.txt`
+    *   **Start Command**: `gunicorn api:app`
+5.  **Choose Plan**: Select **"Free"** (Scroll down to find it).
+6.  Click **"Create Web Service"**.
 
 ### Persistence
 *Note: The free tier of Render does NOT support persistent disks. This means the file-based cache (`cache/`) will be cleared every time the app restarts or deploys. This is fine for this app, but just be aware.*
@@ -38,7 +46,7 @@ We use **Cloudflare Pages** for the React frontend as it's free, fast, and handl
 
 4. **Environment Variables**:
    Add the following variable in the "Environment variables" section:
-   - `VITE_API_URL`: `https://your-backend-domain.com/api`
+   - `VITE_API_URL`: `https://your-render-app-name.onrender.com/api`
      - *Note: Do not include trailing slash.*
      - *Must be HTTPS to avoid mixed content errors.*
 
